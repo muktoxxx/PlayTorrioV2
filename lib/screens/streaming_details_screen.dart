@@ -16,6 +16,8 @@ import '../api/vidsrc_extractor.dart';
 import '../api/settings_service.dart';
 import '../widgets/loading_overlay.dart';
 import '../services/episode_watched_service.dart';
+import '../services/my_list_service.dart';
+import '../utils/app_theme.dart';
 import '../widgets/movie_atmosphere.dart';
 import 'player_screen.dart';
 
@@ -796,42 +798,100 @@ class _StreamingDetailsScreenState extends State<StreamingDetailsScreen> with At
               ],
             )
           else
-            MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: GestureDetector(
-                onTap: _startExtraction,
-                child: Container(
-                  width: isDesktop ? 300 : double.infinity,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF1565C0), Color(0xFF0D47A1)],
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF1565C0).withValues(alpha: 0.4),
-                        blurRadius: 20,
-                        spreadRadius: 2,
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.play_arrow, color: Colors.white, size: 28),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Play Now',
-                        style: GoogleFonts.montserrat(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+            SizedBox(
+              width: isDesktop ? 368 : double.infinity,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        onTap: _startExtraction,
+                        child: Container(
+                          height: 56,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF1565C0), Color(0xFF0D47A1)],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF1565C0).withValues(alpha: 0.4),
+                                blurRadius: 20,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.play_arrow, color: Colors.white, size: 28),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Play Now',
+                                style: GoogleFonts.montserrat(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 12),
+                  ValueListenableBuilder<int>(
+                    valueListenable: MyListService.changeNotifier,
+                    builder: (context, _, _) {
+                      final uid = MyListService.movieId(_movie.id, _movie.mediaType);
+                      final inList = MyListService().contains(uid);
+                      return MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: GestureDetector(
+                          onTap: () async {
+                            await MyListService().toggleMovie(
+                              tmdbId: _movie.id,
+                              imdbId: _movie.imdbId,
+                              title: _movie.title,
+                              posterPath: _movie.posterPath,
+                              mediaType: _movie.mediaType,
+                              voteAverage: _movie.voteAverage,
+                              releaseDate: _movie.releaseDate,
+                            );
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                backgroundColor: AppTheme.bgCard,
+                                behavior: SnackBarBehavior.floating,
+                                content: Text(
+                                  !inList ? 'Added to My List' : 'Removed from My List',
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                            ),
+                            child: Icon(
+                              inList ? Icons.bookmark : Icons.bookmark_border,
+                              color: inList ? const Color(0xFF1565C0) : Colors.white,
+                              size: 26,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
         ],

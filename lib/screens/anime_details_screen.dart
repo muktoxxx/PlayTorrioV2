@@ -146,7 +146,6 @@ class _AnimeDetailsScreenState extends State<AnimeDetailsScreen> {
     );
   }
 
-  // ignore: unused_element
   Future<void> _toggleLike() async {
     await _service.toggleLike(_data);
     if (!mounted) return;
@@ -550,6 +549,23 @@ class _AnimeDetailsScreenState extends State<AnimeDetailsScreen> {
                       ),
                     ],
                   ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Material(
+            color: Colors.white.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(28),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(28),
+              onTap: _toggleLike,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Icon(
+                  _liked ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded,
+                  color: _liked ? AppTheme.primaryColor : Colors.white,
+                  size: 24,
                 ),
               ),
             ),

@@ -18,6 +18,7 @@ import '../services/jackett_service.dart';
 import '../services/prowlarr_service.dart';
 import '../services/link_resolver.dart';
 import '../services/watch_history_service.dart';
+import '../services/my_list_service.dart';
 import '../services/episode_watched_service.dart';
 import '../api/trakt_service.dart';
 import '../api/simkl_service.dart';
@@ -1947,6 +1948,50 @@ class _DetailsScreenState extends State<DetailsScreen> with AtmosphereMixin {
       spacing: 8,
       runSpacing: 8,
       children: [
+        ValueListenableBuilder<int>(
+          valueListenable: MyListService.changeNotifier,
+          builder: (context, _, _) {
+            final String uid;
+            if (widget.stremioItem != null) {
+              uid = MyListService.stremioItemId(widget.stremioItem!);
+            } else {
+              uid = MyListService.movieId(_movie.id, _movie.mediaType);
+            }
+            final inList = MyListService().contains(uid);
+            return _actionButton(
+              icon: inList ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded,
+              label: inList ? 'In My List' : 'My List',
+              color: AppTheme.primaryColor,
+              onTap: () async {
+                if (widget.stremioItem != null) {
+                  await MyListService().toggleStremioItem(widget.stremioItem!);
+                } else {
+                  await MyListService().toggleMovie(
+                    tmdbId: _movie.id,
+                    imdbId: _movie.imdbId,
+                    title: _movie.title,
+                    posterPath: _movie.posterPath,
+                    mediaType: _movie.mediaType,
+                    voteAverage: _movie.voteAverage,
+                    releaseDate: _movie.releaseDate,
+                  );
+                }
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    backgroundColor: AppTheme.bgCard,
+                    behavior: SnackBarBehavior.floating,
+                    content: Text(
+                      !inList ? 'Added to My List' : 'Removed from My List',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              },
+            );
+          },
+        ),
         _actionButton(
           icon: _userTraktRating != null ? Icons.star_rounded : Icons.star_outline_rounded,
           label: _userTraktRating != null ? 'Trakt $_userTraktRating' : 'Rate Trakt',

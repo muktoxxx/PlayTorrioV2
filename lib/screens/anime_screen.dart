@@ -49,6 +49,7 @@ class _AnimeScreenState extends State<AnimeScreen>
 
   // Continue watching
   List<Map<String, dynamic>> _continueWatching = [];
+  List<AnimeCard> _liked = [];
 
   // Tonight's Pick
   AnimeCard? _tonightsPick;
@@ -104,6 +105,7 @@ class _AnimeScreenState extends State<AnimeScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _refreshHistory();
+      _refreshLiked();
     }
   }
 
@@ -118,6 +120,16 @@ class _AnimeScreenState extends State<AnimeScreen>
       if (!mounted) return;
       setState(() {
         _continueWatching = list.take(10).toList();
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _refreshLiked() async {
+    try {
+      final list = await _service.getLiked();
+      if (!mounted) return;
+      setState(() {
+        _liked = list;
       });
     } catch (_) {}
   }
@@ -143,6 +155,7 @@ class _AnimeScreenState extends State<AnimeScreen>
         _service.getTop10Today(),
         _service.getRecentEpisodes(),
         _service.getWatchHistory(),
+        _service.getLiked(),
       ]);
       if (!mounted) return;
       setState(() {
@@ -157,6 +170,7 @@ class _AnimeScreenState extends State<AnimeScreen>
         _recentEpisodes = results[8] as List<AnimeCard>;
         _continueWatching =
             (results[9] as List<Map<String, dynamic>>).take(10).toList();
+        _liked = results[10] as List<AnimeCard>;
 
         if (_trending.length > 4) {
           final pool = _trending.skip(3).toList();
@@ -246,7 +260,10 @@ class _AnimeScreenState extends State<AnimeScreen>
   void _openDetails(AnimeCard a) {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => AnimeDetailsScreen(anime: a)),
-    ).then((_) => _refreshHistory());
+    ).then((_) {
+      _refreshHistory();
+      _refreshLiked();
+    });
   }
 
   void _openDiscover() {
@@ -343,6 +360,15 @@ class _AnimeScreenState extends State<AnimeScreen>
                               if (_continueWatching.isNotEmpty)
                                 SliverToBoxAdapter(
                                   child: _buildContinueWatching(),
+                                ),
+                              if (_liked.isNotEmpty)
+                                SliverToBoxAdapter(
+                                  child: _AnimeRail(
+                                    title: 'My List',
+                                    icon: Icons.bookmark_rounded,
+                                    items: _liked,
+                                    onTap: _openDetails,
+                                  ),
                                 ),
                               SliverToBoxAdapter(child: _buildSpotlightMosaic()),
                               SliverToBoxAdapter(child: _buildMoodChips()),
