@@ -1,0 +1,111 @@
+name: PlayTorrio CI
+
+on:
+  # Run automatically on pushes and PRs to main
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  # Allow manual run with a dropdown in the Actions tab
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "What to build"
+        required: true
+        default: android
+        type: choice
+        options:
+          - android
+          - windows
+          - linux
+
+jobs:
+  build:
+    # windows builds must run on windows; others can be ubuntu
+    runs-on: ${{ github.event.inputs.platform == 'windows' && 'windows-latest' || 'ubuntu-latest' }}
+
+    env:
+      FLUTTER_CHANNEL: stable
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Decode Android keystore (if android)
+        if: ${{ github.event.inputs.platform == 'android' || github.event_name != 'workflow_dispatch' }}
+        run: |
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            mkdir -p android/app
+            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/upload-keystore.jks
+
+            cat > android/key.properties <<EOF
+            storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+            keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+            keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+            storeFile=upload-keystore.jks
+            EOF
+          else
+            echo "No Android keystore secrets set; will build unsigned release/debug."
+          fi
+        shell: bash
+
+      - name: Select build command
+        id: select_cmd
+        run: |
+          PLATFORM="${{ github.event.inputs.platform || 'android' }}"
+
+          if [ "$PLATFORM" = "android" ]; then
+            CMD="flutter build apk"
+          elif [ "$PLATFORM" = "windows" ]; then
+            CMD="flutter build windows"
+          elif [ "$PLATFORM" = "linux" ]; then
+            CMD="flutter build linux"
+          fi
+
+          echo "command=$CMD" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Run build (capture logs)
+        run: |
+          set +e
+          echo "Running: ${{ steps.select_cmd.outputs.command }}"
+          ${{ steps.select_cmd.outputs.command }} 2>&1 | tee build.log
+          STATUS=${PIPESTATUS[0]}
+          if [ $STATUS -ne 0 ]; then
+            echo "Build failed with status $STATUS"
+            exit $STATUS
+          fi
+        shell: bash
+
+      - name: Upload build artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ github.event.inputs.platform || 'android' }}
+          path: |
+            build/app/outputs/flutter-apk/*.apk
+            build/windows/**/Runner.exe
+            build/linux/**/bundle
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ github.event.inputs.platform || 'android' }}
+          path: build.log
